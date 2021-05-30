@@ -24,49 +24,65 @@ unsigned int get_num_rectangles() {
 
 
 // Get user input for the type of sort
-string get_sort_type() {
-    string sort_type;
+sortType get_sort_type() {
+    sortType sort_type = none;
+    string user_input;
 
     // Reprompt user if invalid sort type
     do {
         cout << "Sort type (bubble, selection, insertion, merge): ";
-        cin >> sort_type;
+        cin >> user_input;
 
         if (cin.fail()) {
             cin.clear();
             cin.ignore(1000, '\n');
         }
+        
+        if (user_input == "bubble") {
+            sort_type = sortType::bubble;
+        } 
+        else if (user_input == "selection") {
+            sort_type = sortType::selection;
+        } 
+        else if (user_input == "insertion") {
+            sort_type = sortType::insertion;
+        } 
+        else if (user_input == "merge") {
+            sort_type = sortType::merge;
+        }
     }
-    while (sort_type != "bubble" && sort_type != "selection" && sort_type != "insertion" && sort_type != "merge");
+    while (sort_type == none);
 
     return sort_type;
 }
 
 
 // Initialize the sort variables
-tuple<int, int, int, int, vector<interval>> initialize_sort(string sort_type, int num_rectangles) {
+tuple<int, int, int, int, vector<interval>> initialize_sort(sortType sort_type, int num_rectangles) {
     int current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle;
     vector<interval> merge_intervals;
 
-    if (sort_type == "bubble") {
-        last_sorted_rectangle = num_rectangles;
-        current_rectangle = 0; // Index tracks left rectangle
-    } 
-    else if (sort_type == "selection") {
-        last_sorted_rectangle = -1;
-        current_rectangle = 0;
-        min_rectangle = 0;
-    }
-    else if (sort_type == "insertion") {
-        last_sorted_rectangle = 0;
-        current_rectangle = 1;
-    }
-    else if (sort_type == "merge") {
-        first_sorted_rectangle = 0;
-        last_sorted_rectangle = 0;
-        current_rectangle = -1;
-        initialize_merge_intervals(merge_intervals, 0, num_rectangles - 1);
-        merge_intervals.erase(merge_intervals.begin());
+    switch (sort_type) {
+        case sortType::bubble:
+            last_sorted_rectangle = num_rectangles;
+            current_rectangle = 0; // Index tracks left rectangle
+            break;
+        case sortType::selection:
+            last_sorted_rectangle = -1;
+            current_rectangle = 0;
+            min_rectangle = 0;
+            break;
+        case sortType::insertion:
+            last_sorted_rectangle = 0;
+            current_rectangle = 1;
+            break;
+        case sortType::merge:
+            first_sorted_rectangle = 0;
+            last_sorted_rectangle = 0;
+            current_rectangle = -1;
+            initialize_merge_intervals(merge_intervals, 0, num_rectangles - 1);
+            merge_intervals.erase(merge_intervals.begin()); // Remove first interval since we're already starting there
+            break;
     }
 
     return {current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle, merge_intervals};
@@ -88,56 +104,62 @@ void initialize_merge_intervals(vector<interval>& merge_intervals, int start, in
     // Right recursion
     initialize_merge_intervals(merge_intervals, midpoint + 1, end);
     
+    // Push interval to vector
     interval current_interval = {start, end};
     merge_intervals.push_back(current_interval);
 }
 
 
 // Set rectangle's color
-sf::RectangleShape setColor(sf::RectangleShape rectangle, string sort_type, string sort_status, 
+sf::RectangleShape setColor(sf::RectangleShape rectangle, sortType sort_type, sortStatus sort_status, 
                             int i, int current_rectangle, int first_sorted_rectangle, int last_sorted_rectangle, int min_rectangle, int num_rectangles) {
-    if (sort_type == "bubble") {
-        if (i == current_rectangle || i == current_rectangle + 1) {
-            rectangle.setFillColor(sf::Color::Cyan);
-        }
-        if (i >= last_sorted_rectangle) {
-            rectangle.setFillColor(sf::Color::Yellow);
-        }
-    } 
-    else if (sort_type == "selection") {
-        if (i == current_rectangle) {
-            rectangle.setFillColor(sf::Color::Cyan);
-        }
-        if (i == min_rectangle) {
-            rectangle.setFillColor(sf::Color::Red);
-        }
-        if (i == last_sorted_rectangle + 1 && current_rectangle == num_rectangles) {
-            rectangle.setFillColor(sf::Color::Red);
-        }
-        if (i <= last_sorted_rectangle) {
-            rectangle.setFillColor(sf::Color::Yellow);
-        }
-    } 
-    else if (sort_type == "insertion") {
-        if (i - 1 <= last_sorted_rectangle) {
-            rectangle.setFillColor(sf::Color::Yellow);
-        }
-        if (i == current_rectangle || i == current_rectangle - 1) {
-            rectangle.setFillColor(sf::Color::Cyan);
-        }
-    }
-    else if (sort_type == "merge") {
-        if (first_sorted_rectangle <= i && i <= last_sorted_rectangle) {
-            rectangle.setFillColor(sf::Color::Cyan);
-        }
-        if (i == current_rectangle && first_sorted_rectangle <= i) {
-            rectangle.setFillColor(sf::Color::Red);
-        }
+
+    // If the set is already sorted, set all rectangles green and return
+    if (sort_status == sorted) {
+        rectangle.setFillColor(sf::Color::Green);
+        return rectangle;
     }
 
-    // If the set is already sorted, override and set all rectangles green
-    if (sort_status == "Sorted") {
-        rectangle.setFillColor(sf::Color::Green);
+    // Color depends on sort type
+    switch (sort_type) {
+        case sortType::bubble:
+            if (i == current_rectangle || i == current_rectangle + 1) {
+                rectangle.setFillColor(sf::Color::Cyan); // Highlight current rectangles in cyan
+            }
+            if (i >= last_sorted_rectangle) {
+                rectangle.setFillColor(sf::Color::Yellow); // Highlight sorted rectangles in yellow
+            }
+            break;
+        case sortType::selection:
+            if (i == current_rectangle) {
+                rectangle.setFillColor(sf::Color::Cyan); // Highlight current rectangle in cyan
+            }
+            if (i == min_rectangle) {
+                rectangle.setFillColor(sf::Color::Red); // Highlight min rectangle in red
+            }
+            if (i == last_sorted_rectangle + 1 && current_rectangle == num_rectangles) {
+                rectangle.setFillColor(sf::Color::Red); // Highlight rectangle that will be swapped with min in red
+            }
+            if (i <= last_sorted_rectangle) {
+                rectangle.setFillColor(sf::Color::Yellow); // Highlight sorted rectangles in yellow
+            }
+            break;
+        case sortType::insertion:
+            if (i - 1 <= last_sorted_rectangle) {
+                rectangle.setFillColor(sf::Color::Yellow); // Highlight sorted rectangles in yellow
+            }
+            if (i == current_rectangle || i == current_rectangle - 1) {
+                rectangle.setFillColor(sf::Color::Cyan); // Highlight current rectangles in cyan
+            }
+            break;
+        case sortType::merge:
+            if (first_sorted_rectangle <= i && i <= last_sorted_rectangle) {
+                rectangle.setFillColor(sf::Color::Cyan); // Highlight current interval in cyan
+            }
+            if (i == current_rectangle && first_sorted_rectangle <= i) {
+                rectangle.setFillColor(sf::Color::Red); // Highlight current rectangle in red
+            }
+            break;
     }
 
     return rectangle;

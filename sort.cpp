@@ -4,7 +4,7 @@
 /********** Sorting Algos **********/
 
 // Bubble sort
-void bubble_sort(float rectangle_heights[], int& current_rectangle, int& last_sorted_rectangle, string& sort_status) {
+void bubble_sort(vector<float>& rectangle_heights, int& current_rectangle, int& last_sorted_rectangle, sortStatus& sort_status) {
     // Swap the current rectangles if necessary
     if (rectangle_heights[current_rectangle] > rectangle_heights[current_rectangle + 1]) {
         swap_rectangles(rectangle_heights, current_rectangle, current_rectangle + 1);
@@ -16,8 +16,9 @@ void bubble_sort(float rectangle_heights[], int& current_rectangle, int& last_so
         last_sorted_rectangle--;
         if (last_sorted_rectangle == 1) {
             // End sort
-            sort_status = "Sorted";
+            sort_status = sorted;
             cout << "\nSort complete!";
+            return;
         }
         current_rectangle = 0;
     } else {
@@ -27,7 +28,7 @@ void bubble_sort(float rectangle_heights[], int& current_rectangle, int& last_so
 
 
 // Selection sort
-void selection_sort(float rectangle_heights[], int& current_rectangle, int& last_sorted_rectangle, int& min_rectangle, int num_rectangles, string& sort_status) {
+void selection_sort(vector<float>& rectangle_heights, int& current_rectangle, int& last_sorted_rectangle, int& min_rectangle, int num_rectangles, sortStatus& sort_status) {
     // Set the minimum rectangle
     if (rectangle_heights[current_rectangle] < rectangle_heights[min_rectangle] && current_rectangle != num_rectangles) {
         min_rectangle = current_rectangle;
@@ -41,8 +42,9 @@ void selection_sort(float rectangle_heights[], int& current_rectangle, int& last
         last_sorted_rectangle++;
         if (last_sorted_rectangle == num_rectangles - 1) {
             // End sort
-            sort_status = "Sorted";
+            sort_status = sorted;
             cout << "\nSort complete!";
+            return;
         }
 
         current_rectangle = last_sorted_rectangle + 1;
@@ -54,39 +56,34 @@ void selection_sort(float rectangle_heights[], int& current_rectangle, int& last
 
 
 // Insertion sort
-void insertion_sort(float rectangle_heights[], int& current_rectangle, int& last_sorted_rectangle, int num_rectangles, string& sort_status) {
+void insertion_sort(vector<float>& rectangle_heights, int& current_rectangle, int& last_sorted_rectangle, int num_rectangles, sortStatus& sort_status) {
     // Swap the current rectangles if necessary
     if (rectangle_heights[current_rectangle] < rectangle_heights[current_rectangle - 1]) {
         swap_rectangles(rectangle_heights, current_rectangle - 1, current_rectangle);
 
         // Move on to next rectangles
         current_rectangle--;
-        if (current_rectangle == 0) {
-            last_sorted_rectangle++;
-            if (last_sorted_rectangle == num_rectangles - 1) {
-                // End sort
-                sort_status = "Sorted";
-                cout << "\nSort complete!";
-            }
-            current_rectangle = last_sorted_rectangle + 1;
+        if (current_rectangle != 0) {
+            return;
         }
-    } else {
-        // Move on to next rectangles
-        last_sorted_rectangle++;
-        if (last_sorted_rectangle == num_rectangles - 1) {
-            // End sort
-            sort_status = "Sorted";
-            cout << "\nSort complete!";
-        }
-
-        current_rectangle = last_sorted_rectangle + 1;
     }
+
+    // Sort next set of rectangles
+    last_sorted_rectangle++;
+    if (last_sorted_rectangle == num_rectangles - 1) {
+        // End sort
+        sort_status = sorted;
+        cout << "\nSort complete!";
+        return;
+    }
+
+    current_rectangle = last_sorted_rectangle + 1;
 }
 
 
 // Merge sort
-void merge_sort(float rectangle_heights[], int& current_rectangle, int& first_sorted_rectangle, int& last_sorted_rectangle,   
-                vector<float>& sorted_heights, vector<interval>& merge_intervals, string& sort_status) {
+void merge_sort(vector<float>& rectangle_heights, int& current_rectangle, int& first_sorted_rectangle, int& last_sorted_rectangle,   
+                vector<float>& sorted_heights, vector<interval>& merge_intervals, sortStatus& sort_status) {
     // Change height of current rectangle
     if (current_rectangle >= first_sorted_rectangle) {
         rectangle_heights[current_rectangle] = sorted_heights[0];
@@ -96,33 +93,37 @@ void merge_sort(float rectangle_heights[], int& current_rectangle, int& first_so
         }
     }
     
-    if (current_rectangle == last_sorted_rectangle) {
-        if (merge_intervals.size() == 0) {
-            // End sort
-            sort_status = "Sorted";
-            cout << "\nSort complete!";
-        } else {
-            // Set new first sorted and last sorted
-            first_sorted_rectangle = merge_intervals[0].first;
-            last_sorted_rectangle = merge_intervals[0].last;
-            current_rectangle = first_sorted_rectangle - 1;
-            // Remove the interval from the merge intervals vector
-            merge_intervals.erase(merge_intervals.begin());
-
-            // Create new sorted heights
-            for (int i = first_sorted_rectangle; i <= last_sorted_rectangle; i++) {
-                sorted_heights.push_back(rectangle_heights[i]);
-            }
-            sort(sorted_heights.begin(), sorted_heights.end());
-        }
-    } else {
+    // Move current rectangle to next one
+    if (current_rectangle != last_sorted_rectangle) {
         current_rectangle++;
+        return;
     }
+
+    // Move on to next interval
+    // If there are no more intervals, end sort
+    if (merge_intervals.size() == 0) {
+        sort_status = sorted;
+        cout << "\nSort complete!";
+        return;
+    }
+    
+    // Otherwise, set new first sorted and last sorted
+    first_sorted_rectangle = merge_intervals[0].start;
+    last_sorted_rectangle = merge_intervals[0].end;
+    current_rectangle = first_sorted_rectangle - 1;
+    // Remove the interval from the merge intervals vector
+    merge_intervals.erase(merge_intervals.begin());
+
+    // Create new sorted heights
+    for (int i = first_sorted_rectangle; i <= last_sorted_rectangle; i++) {
+        sorted_heights.push_back(rectangle_heights[i]);
+    }
+    sort(sorted_heights.begin(), sorted_heights.end());
 }
 
 
 // Swap the positions of two rectangles
-void swap_rectangles(float rectangle_heights[], int pos1, int pos2) {
+void swap_rectangles(vector<float>& rectangle_heights, int pos1, int pos2) {
     float temp = rectangle_heights[pos1];
     rectangle_heights[pos1] = rectangle_heights[pos2];
     rectangle_heights[pos2] = temp;
