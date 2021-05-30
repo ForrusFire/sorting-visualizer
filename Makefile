@@ -1,6 +1,13 @@
 all: compile link
 
-compile:
-	g++ -I src/include -c main.cpp sort.cpp helper.cpp
+
+OBJECTS := $(patsubst src/%.cpp, build/%.o, $(wildcard src/*.cpp))
+
+build/%.o: src/%.cpp
+	g++ -I include -c -o $@ $<
+
+
+compile: $(OBJECTS)
+
 link:
-	g++ main.o sort.o helper.o -o main -L src/lib -l sfml-graphics -l sfml-window -l sfml-system
+	g++ $(OBJECTS) -o main -L lib -l sfml-graphics -l sfml-window -l sfml-system
