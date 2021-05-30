@@ -12,22 +12,30 @@ using namespace std;
 const unsigned int SCREEN_WIDTH = 640;
 const unsigned int SCREEN_HEIGHT = 480;
 
+struct interval {
+    int first;
+    int last;
+};
+
 /* Prototypes */
 unsigned int get_num_rectangles(void);
 string get_sort_type(void);
-tuple<int, int, int> initalize_sort(string sort_type, int num_rectangles);
+tuple<int, int, int, int, vector<interval>> initialize_sort(string sort_type, int num_rectangles);
+void initialize_merge_intervals(vector<interval>& merge_intervals, int start, int end);
 sf::RectangleShape setColor(sf::RectangleShape rectangle, string sort_type, string sort_status, 
-                            int i, int current_rectangle, int last_sorted_rectangle, int min_rectangle, int num_rectangles);
+                            int i, int current_rectangle, int first_sorted_rectangle, int last_sorted_rectangle, int min_rectangle, int num_rectangles);
 
 void bubble_sort(float rectangle_heights[], int& current_rectangle, int& last_sorted_rectangle, string& sort_status);
 void selection_sort(float rectangle_heights[], int& current_rectangle, int& last_sorted_rectangle, int& min_rectangle, int num_rectangles, string& sort_status);
 void insertion_sort(float rectangle_heights[], int& current_rectangle, int& last_sorted_rectangle, int num_rectangles, string& sort_status);
+void merge_sort(float rectangle_heights[], int& current_rectangle, int& first_sorted_rectangle, int& last_sorted_rectangle,   
+                vector<float>& sorted_heights, vector<interval>& merge_intervals, string& sort_status);
 void swap_rectangles(float rectangle_heights[], int pos1, int pos2);
 
 
 int main()
 {
-    // Initalize random seed
+    // Initialize random seed
     srand(time(NULL));
     
     // Create window
@@ -38,7 +46,7 @@ int main()
     // Create rectangle width and initial heights
     unsigned int num_rectangles = get_num_rectangles();
 
-    float rectangle_width = SCREEN_WIDTH / num_rectangles;
+    float rectangle_width = SCREEN_WIDTH / (float)num_rectangles;
     float rectangle_heights[num_rectangles];
     for (int i = 0; i < num_rectangles; i++) {
         float rectangle_height = rand() % SCREEN_HEIGHT;
@@ -52,8 +60,10 @@ int main()
     // Type of sort
     string sort_type = get_sort_type();
 
-    // Sort initalizer
-    auto [current_rectangle, last_sorted_rectangle, min_rectangle] = initalize_sort(sort_type, num_rectangles);
+    // Sort initializer
+    auto [current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle, merge_intervals] = initialize_sort(sort_type, num_rectangles);
+    vector<float> sorted_heights{rectangle_heights[0]};
+    cout << "Press space to start sorting!";
 
 
     // Main loop
@@ -74,7 +84,7 @@ int main()
             sf::RectangleShape rectangle;
             rectangle.setSize(sf::Vector2f(rectangle_width, rectangle_heights[i]));
             rectangle.setPosition(sf::Vector2f(i * rectangle_width, SCREEN_HEIGHT - rectangle_heights[i]));
-            rectangle = setColor(rectangle, sort_type, sort_status, i, current_rectangle, last_sorted_rectangle, min_rectangle, num_rectangles);
+            rectangle = setColor(rectangle, sort_type, sort_status, i, current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle, num_rectangles);
 
             window.draw(rectangle);
         }
@@ -96,6 +106,8 @@ int main()
                 } 
                 else if (sort_type == "insertion") {
                     insertion_sort(rectangle_heights, current_rectangle, last_sorted_rectangle, num_rectangles, sort_status);
+                } else if (sort_type == "merge") {
+                    merge_sort(rectangle_heights, current_rectangle, first_sorted_rectangle, last_sorted_rectangle, sorted_heights, merge_intervals, sort_status);
                 }
 
                 // Restart timer
@@ -139,7 +151,7 @@ string get_sort_type() {
 
     // Reprompt user if invalid sort type
     do {
-        cout << "Sort type (bubble, selection, insertion): ";
+        cout << "Sort type (bubble, selection, insertion, merge): ";
         cin >> sort_type;
 
         if (cin.fail()) {
@@ -147,15 +159,16 @@ string get_sort_type() {
             cin.ignore(1000, '\n');
         }
     }
-    while (sort_type != "bubble" && sort_type != "selection" && sort_type != "insertion");
+    while (sort_type != "bubble" && sort_type != "selection" && sort_type != "insertion" && sort_type != "merge");
 
     return sort_type;
 }
 
 
-// Initalize the sort variables
-tuple<int, int, int> initalize_sort(string sort_type, int num_rectangles) {
-    int current_rectangle, last_sorted_rectangle, min_rectangle;
+// Initialize the sort variables
+tuple<int, int, int, int, vector<interval>> initialize_sort(string sort_type, int num_rectangles) {
+    int current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle;
+    vector<interval> merge_intervals;
 
     if (sort_type == "bubble") {
         last_sorted_rectangle = num_rectangles;
@@ -170,14 +183,41 @@ tuple<int, int, int> initalize_sort(string sort_type, int num_rectangles) {
         last_sorted_rectangle = 0;
         current_rectangle = 1;
     }
+    else if (sort_type == "merge") {
+        first_sorted_rectangle = 0;
+        last_sorted_rectangle = 0;
+        current_rectangle = -1;
+        initialize_merge_intervals(merge_intervals, 0, num_rectangles - 1);
+        merge_intervals.erase(merge_intervals.begin());
+    }
 
-    return {current_rectangle, last_sorted_rectangle, min_rectangle};
+    return {current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle, merge_intervals};
+}
+
+
+// Initialize merge intervals
+void initialize_merge_intervals(vector<interval>& merge_intervals, int start, int end) {
+    // Recursion base
+    if (start == end) {
+        interval current_interval = {start, end};
+        merge_intervals.push_back(current_interval);
+        return;
+    }
+
+    int midpoint = start + (int)floor(((float)end - start) / 2);
+    // Left recursion
+    initialize_merge_intervals(merge_intervals, start, midpoint);
+    // Right recursion
+    initialize_merge_intervals(merge_intervals, midpoint + 1, end);
+    
+    interval current_interval = {start, end};
+    merge_intervals.push_back(current_interval);
 }
 
 
 // Set rectangle's color
 sf::RectangleShape setColor(sf::RectangleShape rectangle, string sort_type, string sort_status, 
-                            int i, int current_rectangle, int last_sorted_rectangle, int min_rectangle, int num_rectangles) {
+                            int i, int current_rectangle, int first_sorted_rectangle, int last_sorted_rectangle, int min_rectangle, int num_rectangles) {
     if (sort_type == "bubble") {
         if (i == current_rectangle || i == current_rectangle + 1) {
             rectangle.setFillColor(sf::Color::Cyan);
@@ -208,6 +248,14 @@ sf::RectangleShape setColor(sf::RectangleShape rectangle, string sort_type, stri
             rectangle.setFillColor(sf::Color::Cyan);
         }
     }
+    else if (sort_type == "merge") {
+        if (first_sorted_rectangle <= i && i <= last_sorted_rectangle) {
+            rectangle.setFillColor(sf::Color::Cyan);
+        }
+        if (i == current_rectangle && first_sorted_rectangle <= i) {
+            rectangle.setFillColor(sf::Color::Red);
+        }
+    }
 
     // If the set is already sorted, override and set all rectangles green
     if (sort_status == "Sorted") {
@@ -235,6 +283,7 @@ void bubble_sort(float rectangle_heights[], int& current_rectangle, int& last_so
         if (last_sorted_rectangle == 1) {
             // End sort
             sort_status = "Sorted";
+            cout << "\nSort complete!";
         }
         current_rectangle = 0;
     } else {
@@ -259,6 +308,7 @@ void selection_sort(float rectangle_heights[], int& current_rectangle, int& last
         if (last_sorted_rectangle == num_rectangles - 1) {
             // End sort
             sort_status = "Sorted";
+            cout << "\nSort complete!";
         }
 
         current_rectangle = last_sorted_rectangle + 1;
@@ -282,6 +332,7 @@ void insertion_sort(float rectangle_heights[], int& current_rectangle, int& last
             if (last_sorted_rectangle == num_rectangles - 1) {
                 // End sort
                 sort_status = "Sorted";
+                cout << "\nSort complete!";
             }
             current_rectangle = last_sorted_rectangle + 1;
         }
@@ -291,9 +342,47 @@ void insertion_sort(float rectangle_heights[], int& current_rectangle, int& last
         if (last_sorted_rectangle == num_rectangles - 1) {
             // End sort
             sort_status = "Sorted";
+            cout << "\nSort complete!";
         }
 
         current_rectangle = last_sorted_rectangle + 1;
+    }
+}
+
+
+// Merge sort
+void merge_sort(float rectangle_heights[], int& current_rectangle, int& first_sorted_rectangle, int& last_sorted_rectangle,   
+                vector<float>& sorted_heights, vector<interval>& merge_intervals, string& sort_status) {
+    // Change height of current rectangle
+    if (current_rectangle >= first_sorted_rectangle) {
+        rectangle_heights[current_rectangle] = sorted_heights[0];
+        
+        if (sorted_heights.size() != 0) {
+            sorted_heights.erase(sorted_heights.begin());
+        }
+    }
+    
+    if (current_rectangle == last_sorted_rectangle) {
+        if (merge_intervals.size() == 0) {
+            // End sort
+            sort_status = "Sorted";
+            cout << "\nSort complete!";
+        } else {
+            // Set new first sorted and last sorted
+            first_sorted_rectangle = merge_intervals[0].first;
+            last_sorted_rectangle = merge_intervals[0].last;
+            current_rectangle = first_sorted_rectangle - 1;
+            // Remove the interval from the merge intervals vector
+            merge_intervals.erase(merge_intervals.begin());
+
+            // Create new sorted heights
+            for (int i = first_sorted_rectangle; i <= last_sorted_rectangle; i++) {
+                sorted_heights.push_back(rectangle_heights[i]);
+            }
+            sort(sorted_heights.begin(), sorted_heights.end());
+        }
+    } else {
+        current_rectangle++;
     }
 }
 
