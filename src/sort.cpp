@@ -122,6 +122,84 @@ void merge_sort(vector<float>& rectangle_heights, int& current_rectangle, int& f
 }
 
 
+// Quick sort
+void quick_sort(vector<float>& rectangle_heights, vector<int>& sorted_rectangles, vector<interval>& sort_intervals,
+                int& current_rectangle, int& first_sorted_rectangle, int& last_sorted_rectangle, int& pivot, int& cutoff, bool& swap_pause, sortStatus& sort_status) {
+    // If current rectangle is within interval and if its height is less than the pivot height, prepare swap
+    if (current_rectangle >= first_sorted_rectangle && current_rectangle <= last_sorted_rectangle) {
+        if (rectangle_heights[current_rectangle] <= rectangle_heights[pivot]) {
+            // Pause, unless current rectangle and swap rectangle are the same
+            if (swap_pause == false && cutoff + 1 != current_rectangle) {
+                swap_pause = true;
+                return;
+            }
+
+            swap_pause = false; // Turn the pause off
+            swap_rectangles(rectangle_heights, current_rectangle, cutoff + 1);
+            cutoff++;
+        }
+    }
+
+    current_rectangle++;
+    if (current_rectangle >= last_sorted_rectangle + 1) {
+        // If at the end, pause, unless there is only one rectangle in the interval
+        if (swap_pause == false && first_sorted_rectangle <= last_sorted_rectangle) {
+            swap_pause = true;
+            return;
+        }
+
+        swap_pause = false; // Turn pause off
+        swap_rectangles(rectangle_heights, pivot, cutoff);
+        insert_sort_intervals(sort_intervals, sorted_rectangles, cutoff, rectangle_heights.size());
+
+        // Select next interval
+        // If there are no more intervals, end sort
+        if (sort_intervals.size() == 0) {
+            sort_status = sorted;
+            cout << "\nSort complete!";
+            return;
+        }
+
+        first_sorted_rectangle = sort_intervals[0].start + 1;
+        last_sorted_rectangle = sort_intervals[0].end;
+
+        pivot = first_sorted_rectangle - 1;
+        cutoff = pivot;
+        current_rectangle = pivot;
+
+        sort_intervals.erase(sort_intervals.begin()); // Remove spent interval
+    }
+}
+
+
+// Insert sort intervals and sorted rectangle
+void insert_sort_intervals(vector<interval>& sort_intervals, vector<int>& sorted_rectangles, int cutoff, int num_rectangles) {
+    // Determine the minimum index in the sorted rectangles vector that is larger than the cutoff
+    int index = 0;
+    while (index < sorted_rectangles.size() && sorted_rectangles[index] < cutoff) {
+        index++;
+    }
+
+    // Create and append right interval
+    interval new_interval;
+    new_interval = (index == sorted_rectangles.size()) ? interval{cutoff + 1, num_rectangles - 1} : interval{cutoff + 1, sorted_rectangles[index] - 1};
+
+    if (new_interval.start <= new_interval.end) {
+        sort_intervals.insert(sort_intervals.begin(), new_interval);
+    }
+
+    // Create and append left interval
+    new_interval = (index == 0) ? interval{0, cutoff - 1} : interval{sorted_rectangles[index - 1] + 1, cutoff - 1};
+
+    if (new_interval.start <= new_interval.end) {
+        sort_intervals.insert(sort_intervals.begin(), new_interval);
+    }
+
+    // Insert new sorted rectangle into sorted rectangles
+    sorted_rectangles.insert(sorted_rectangles.begin() + index, cutoff);
+}
+
+
 // Swap the positions of two rectangles
 void swap_rectangles(vector<float>& rectangle_heights, int pos1, int pos2) {
     float temp = rectangle_heights[pos1];

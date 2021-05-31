@@ -30,7 +30,7 @@ sortType get_sort_type() {
 
     // Reprompt user if invalid sort type
     do {
-        cout << "Sort type (bubble, selection, insertion, merge): ";
+        cout << "Sort type (bubble, selection, insertion, merge, quick): ";
         cin >> user_input;
 
         if (cin.fail()) {
@@ -49,6 +49,8 @@ sortType get_sort_type() {
         } 
         else if (user_input == "merge") {
             sort_type = sortType::merge;
+        } else if (user_input == "quick") {
+            sort_type = sortType::quick;
         }
     }
     while (sort_type == none);
@@ -57,10 +59,17 @@ sortType get_sort_type() {
 }
 
 
+// Determine sort speed
+float get_sort_speed(int num_rectangles, int sort_speed_factor) {
+    return (pow(num_rectangles, 2) - num_rectangles) / sort_speed_factor;
+}
+
+
 // Initialize the sort variables
-tuple<int, int, int, int, vector<interval>> initialize_sort(sortType sort_type, int num_rectangles) {
-    int current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle;
-    vector<interval> merge_intervals;
+tuple<int, int, int, int, int, int, bool, vector<interval>> initialize_sort(sortType sort_type, int num_rectangles) {
+    int current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle, pivot, cutoff;
+    vector<interval> intervals;
+    bool swap_pause;
 
     switch (sort_type) {
         case sortType::bubble:
@@ -80,12 +89,20 @@ tuple<int, int, int, int, vector<interval>> initialize_sort(sortType sort_type, 
             first_sorted_rectangle = 0;
             last_sorted_rectangle = 0;
             current_rectangle = -1;
-            initialize_merge_intervals(merge_intervals, 0, num_rectangles - 1);
-            merge_intervals.erase(merge_intervals.begin()); // Remove first interval since we're already starting there
+            initialize_merge_intervals(intervals, 0, num_rectangles - 1);
+            intervals.erase(intervals.begin()); // Remove first interval since we're already starting there
+            break;
+        case sortType::quick:
+            first_sorted_rectangle = 1;
+            last_sorted_rectangle = num_rectangles - 1;
+            current_rectangle = 0;
+            pivot = 0;
+            cutoff = 0;
+            swap_pause = false;
             break;
     }
 
-    return {current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle, merge_intervals};
+    return {current_rectangle, first_sorted_rectangle, last_sorted_rectangle, min_rectangle, pivot, cutoff, swap_pause, intervals};
 }
 
 
@@ -111,8 +128,8 @@ void initialize_merge_intervals(vector<interval>& merge_intervals, int start, in
 
 
 // Set rectangle's color
-sf::RectangleShape setColor(sf::RectangleShape rectangle, sortType sort_type, sortStatus sort_status, 
-                            int i, int current_rectangle, int first_sorted_rectangle, int last_sorted_rectangle, int min_rectangle, int num_rectangles) {
+sf::RectangleShape setColor(sf::RectangleShape rectangle, sortType sort_type, sortStatus sort_status, bool swap_pause, vector<int> sorted_rectangles,
+                            int i, int current_rectangle, int first_sorted_rectangle, int last_sorted_rectangle, int min_rectangle, int pivot, int cutoff, int num_rectangles) {
 
     // If the set is already sorted, set all rectangles green and return
     if (sort_status == sorted) {
@@ -158,6 +175,31 @@ sf::RectangleShape setColor(sf::RectangleShape rectangle, sortType sort_type, so
             }
             if (i == current_rectangle && first_sorted_rectangle <= i) {
                 rectangle.setFillColor(sf::Color::Red); // Highlight current rectangle in red
+            }
+            break;
+        case sortType::quick:
+            if (i >= first_sorted_rectangle && i <= cutoff) {
+                rectangle.setFillColor(sf::Color::Cyan); // Highlight rectangles that are less than the pivot in cyan
+            }
+            if (i > cutoff && i <= current_rectangle) {
+                rectangle.setFillColor(sf::Color::Blue); // Highlight rectangles that are greater than the pivot in blue
+            }
+            if (i == current_rectangle && i >= first_sorted_rectangle && i <= last_sorted_rectangle) {
+                rectangle.setFillColor(sf::Color::Red); // Highlight the current rectangle in red
+            }
+            if (swap_pause == true && current_rectangle <= last_sorted_rectangle && i == cutoff + 1) {
+                rectangle.setFillColor(sf::Color::Red); // If swapping, highlight the rectangle swapping with the current rectangle in red
+            }
+            if (i == pivot) {
+                rectangle.setFillColor(sf::Color::Magenta); // Highlight the pivot in margenta
+            }
+            if (swap_pause == true && current_rectangle >= last_sorted_rectangle + 1 && i == cutoff) {
+                rectangle.setFillColor(sf::Color::Magenta); // If swapping, highlight the rectangle swapping with the pivot in magenta
+            }
+            for (int j = 0; j < sorted_rectangles.size(); j++) {
+                if (i == sorted_rectangles[j]) {
+                    rectangle.setFillColor(sf::Color::Yellow); // Highlight the sorted rectangles in yellow
+                }
             }
             break;
     }
